@@ -1,5 +1,8 @@
-import { dbConnect } from "db";
+import { dbConnect } from "./db";
+import { Request, Response } from "express";
 
-export const taskList = async function() {};
+export const list = async function(req: Request, res: Response) {};
 
-export const taskItem = async function() {};
+export const item = async function(req: Request, res: Response) {};
+
+export const commit = async function(req: Request, res: Response) {};
