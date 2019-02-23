@@ -11,7 +11,17 @@ export const reg = async function(req: Request, res: Response) {
     try {
         const { email, username, password } = req.body;
 
-        // TODO : CHECK IF EMAIL / USERNAME EXISTS
+        const existCheck = await db
+            .collection("user")
+            .find({
+                $or: [{ username: username }, { email: email }]
+            })
+            .toArray();
+
+        if (existCheck.length !== 0) {
+            res.json({ code: -1, msg: "用户名或电子邮箱已存在！" });
+            return;
+        }
 
         const pwd_md5 = addSaltPasswordOnce(password);
 
@@ -32,10 +42,11 @@ export const reg = async function(req: Request, res: Response) {
             res.json({ code: -1, msg: "未知错误！" });
         }
     } catch (e) {
+        res.json({ code: -1, msg: e.message });
         console.log(e);
+    } finally {
+        client.close();
     }
-
-    client.close();
 };
 
 export const login = async function(req: Request, res: Response) {
@@ -80,10 +91,11 @@ export const login = async function(req: Request, res: Response) {
             res.json({ code: -1, msg: "密码错误！" });
         }
     } catch (e) {
+        res.json({ code: -1, msg: e.message });
         console.log(e);
+    } finally {
+        client.close();
     }
-
-    client.close();
 };
 
 export const info = async function(req: Request, res: Response) {
@@ -105,8 +117,9 @@ export const info = async function(req: Request, res: Response) {
             }
         });
     } catch (e) {
+        res.json({ code: -1, msg: e.message });
         console.log(e);
+    } finally {
+        client.close();
     }
-
-    client.close();
 };

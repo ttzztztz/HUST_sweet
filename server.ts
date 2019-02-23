@@ -35,9 +35,10 @@ app.post("/user/login", User.login);
 app.post("/user/reg", User.reg);
 
 //Task
-app.get("/task/list/:page", Task.commit);
-app.get("/task/item/:id", Task.commit);
+app.get("/task/list/:page", Task.list);
+app.get("/task/item/:id", Task.item);
 app.post("/task/commit/:id", Task.commit);
+app.post("/task/create", Task.create);
 
 app.listen(8888, () => {
     console.log(`Rabbit WebServer / ${SERVER_VERSION} is running on port 8888.`);
