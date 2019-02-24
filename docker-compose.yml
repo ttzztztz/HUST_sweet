@@ -14,7 +14,7 @@ services:
         environment:
             - SECRET=__hZy__TqL__
         ports:
-            - 7012:7012
+            - 8888:8888
         links:
             - mongodb
         depends_on:

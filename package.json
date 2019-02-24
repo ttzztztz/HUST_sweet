@@ -18,6 +18,7 @@
     "scripts": {
         "dev": "ts-node server.ts",
         "compile": "tsc",
+        "init": "node ./output/utils/initData.js",
         "start": "node ./output/server.js"
     },
     "devDependencies": {

@@ -7,7 +7,8 @@ COPY yarn.lock .
 RUN yarn
 
 COPY . .
-RUN yarn compile
+RUN yarn run compile
+RUN yarn run init
 
 CMD [ "start" ]
 ENTRYPOINT [ "yarn" ]
