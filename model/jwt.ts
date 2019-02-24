@@ -1,5 +1,5 @@
 import jwt from "jsonwebtoken";
-import { IJWT } from "../typings/user";
+import { IJWT } from "../typings/types";
 import { SECRET } from "./consts";
 
 export const signJWT = function(uid: string, username: string, isAdmin: boolean) {

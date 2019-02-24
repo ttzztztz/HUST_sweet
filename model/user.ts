@@ -1,9 +1,9 @@
 import { dbConnect } from "./db";
 import { Request, Response } from "express";
 import { addSaltPasswordOnce } from "./md5";
-import { IUser } from "../typings/user";
+import { IUser } from "../typings/types";
 import { signJWT, verifyJWT } from "./jwt";
-import { ObjectID } from "bson";
+import { ObjectID } from "mongodb";
 
 export const reg = async function(req: Request, res: Response) {
     const { db, client } = await dbConnect();
@@ -31,12 +31,13 @@ export const reg = async function(req: Request, res: Response) {
             email: email,
             isAdmin: false,
             golds: 0,
-            lastLogin: new Date()
+            lastLogin: new Date(),
+            createDate: new Date()
         };
 
         const result = await db.collection("user").insertOne(userObj);
 
-        if (result.insertedCount === 1) {
+        if (result.insertedCount) {
             res.json({ code: 1, msg: signJWT(result.insertedId.toHexString(), username, false) });
         } else {
             res.json({ code: -1, msg: "未知错误！" });
