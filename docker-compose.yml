@@ -22,7 +22,7 @@ services:
         restart: always
         command:
             - initialize
-    # redis:
-    #     image: redis
-    #     stdin_open: true
-    #     tty: true
+    redis:
+        image: redis
+        stdin_open: true
+        tty: true

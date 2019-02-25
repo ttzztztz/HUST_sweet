@@ -3,11 +3,14 @@ require("dotenv").config();
 import express from "express";
 import bodyParser from "body-parser";
 import multer from "multer";
+import Redis from "redis";
+import Redlock from "redlock";
 
 import * as User from "./model/user";
 import * as Task from "./model/task";
 import * as Upload from "./model/upload";
 import { fileDestination, fileFilter, fileName } from "./model/file";
+import { MODE } from "./model/consts";
 
 const app = express();
 const SERVER_VERSION = "1.00";
@@ -41,6 +44,18 @@ const upload = multer({
     storage: storage,
     limits: { fileSize: 20971520 },
     fileFilter: fileFilter
+});
+
+export const redisClient = Redis.createClient({
+    host: MODE === "DEV" ? "localhost" : "redis",
+    port: 6379
+});
+
+export const redLock = new Redlock([redisClient], {
+    driftFactor: 0.01,
+    retryCount: 10,
+    retryDelay: 200,
+    retryJitter: 200
 });
 
 //User

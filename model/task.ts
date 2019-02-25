@@ -5,6 +5,7 @@ import { PAGESIZE } from "./consts";
 import { verifyJWT } from "./jwt";
 import { ITask, IUserTask, FILE_OK, FILE_PENDING, IFile } from "../typings/types";
 import { fileProcess } from "./file";
+import { redLock } from "../server";
 
 export const list = async function(req: Request, res: Response) {
     const { page } = req.params;
@@ -74,86 +75,95 @@ export const commit = async function(req: Request, res: Response) {
     try {
         const { uid, isAdmin } = verifyJWT(req.header("Authorization"));
 
-        const done = await db.collection("userTask").findOne({
-            uid: uid,
-            tid: tid
-        });
+        //Lock User
+        const lockUser = await redLock.lock(`User:${uid}`, 2000);
 
-        if (done) {
-            res.json({ code: -1, msg: "您已完成该任务！" });
-            return;
-        }
+        try {
+            const done = await db.collection("userTask").findOne({
+                uid: uid,
+                tid: tid
+            });
 
-        const fileObj = (await db.collection("file").findOne({
-            _id: new ObjectID(fid),
-            status: FILE_PENDING,
-            uid: new ObjectID(uid)
-        })) as IFile | undefined;
-
-        if (!fileObj) {
-            res.json({ code: -1, msg: "文件不存在！" });
-            return;
-        }
-
-        const taskInfo = (await db.collection("task").findOne({
-            _id: new ObjectID(tid)
-        })) as ITask | undefined;
-
-        if (!taskInfo) {
-            res.json({ code: -1, msg: "任务不存在！" });
-            return;
-        }
-
-        const resultFileProcess = await fileProcess(fid, tid, uid, isAdmin);
-
-        if (!resultFileProcess) {
-            res.json({ code: -1, msg: "文件处理失败！" });
-            return;
-        }
-
-        const insertObj: IUserTask = {
-            uid: new ObjectID(uid),
-            tid: new ObjectID(tid),
-            fid: new ObjectID(fid),
-            time: new Date()
-        };
-
-        await db.collection("userTask").updateOne(
-            {
-                _id: fileObj!._id!
-            },
-            {
-                $set: {
-                    status: FILE_OK,
-                    tid: new ObjectID(tid)
-                }
+            if (done) {
+                res.json({ code: -1, msg: "您已完成该任务！" });
+                return;
             }
-        );
 
-        await db.collection("user").updateOne(
-            {
-                _id: new ObjectID(uid)
-            },
-            {
-                $inc: { golds: taskInfo!.bonus }
+            const fileObj = (await db.collection("file").findOne({
+                _id: new ObjectID(fid),
+                status: FILE_PENDING,
+                uid: new ObjectID(uid)
+            })) as IFile | undefined;
+
+            if (!fileObj) {
+                res.json({ code: -1, msg: "文件不存在！" });
+                return;
             }
-        );
 
-        await db.collection("task").updateOne(
-            {
+            const taskInfo = (await db.collection("task").findOne({
                 _id: new ObjectID(tid)
-            },
-            {
-                $inc: { finishedCount: 1 }
+            })) as ITask | undefined;
+
+            if (!taskInfo) {
+                res.json({ code: -1, msg: "任务不存在！" });
+                return;
             }
-        );
 
-        const result = await db.collection("userTask").insertOne(insertObj);
+            const resultFileProcess = await fileProcess(fid, tid, uid, isAdmin);
 
-        if (result.insertedCount) {
-            res.json({ code: 1, msg: result.insertedId });
-        } else {
-            res.json({ code: -1, msg: "未知错误！" });
+            if (!resultFileProcess) {
+                res.json({ code: -1, msg: "文件处理失败！" });
+                return;
+            }
+
+            const insertObj: IUserTask = {
+                uid: new ObjectID(uid),
+                tid: new ObjectID(tid),
+                fid: new ObjectID(fid),
+                time: new Date()
+            };
+
+            await db.collection("userTask").updateOne(
+                {
+                    _id: fileObj!._id!
+                },
+                {
+                    $set: {
+                        status: FILE_OK,
+                        tid: new ObjectID(tid)
+                    }
+                }
+            );
+
+            await db.collection("user").updateOne(
+                {
+                    _id: new ObjectID(uid)
+                },
+                {
+                    $inc: { golds: taskInfo!.bonus }
+                }
+            );
+
+            await db.collection("task").updateOne(
+                {
+                    _id: new ObjectID(tid)
+                },
+                {
+                    $inc: { finishedCount: 1 }
+                }
+            );
+
+            const result = await db.collection("userTask").insertOne(insertObj);
+
+            if (result.insertedCount) {
+                res.json({ code: 1, msg: result.insertedId });
+            } else {
+                res.json({ code: -1, msg: "未知错误！" });
+            }
+        } catch (e) {
+            console.log(e);
+        } finally {
+            lockUser.unlock();
         }
     } catch (e) {
         console.log(e);
