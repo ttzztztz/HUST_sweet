@@ -10,9 +10,9 @@ export const fileDestination = function(
     const date = new Date();
     const dirName =
         date.getFullYear().toString() + "_" + (date.getMonth() + 1).toString() + "_" + date.getDate().toString();
-    const parentDir = MODE === "DEV" ? `./upload/tmp` : `/var/bbs/upload/tmp`;
+    const parentDir = MODE === "DEV" ? `./upload/tmp` : `/var/sweet/upload/tmp`;
     const childDir = `${parentDir}/${dirName}`;
-    if (!fs.existsSync(MODE === "DEV" ? `./upload` : "/var/bbs/upload")) fs.mkdirSync("/var/bbs/upload");
+    if (!fs.existsSync(MODE === "DEV" ? `./upload` : "/var/sweet/upload")) fs.mkdirSync("/var/sweet/upload");
     if (!fs.existsSync(parentDir)) fs.mkdirSync(parentDir);
     if (!fs.existsSync(childDir)) fs.mkdirSync(childDir);
     cb(null, `${childDir}/`);
