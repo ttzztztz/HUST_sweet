@@ -5,6 +5,7 @@ import bodyParser from "body-parser";
 import multer from "multer";
 import Redis from "redis";
 import Redlock from "redlock";
+import fs from "fs";
 
 import * as User from "./model/user";
 import * as Task from "./model/task";
@@ -75,3 +76,9 @@ app.post("/upload", upload.single("attach"), Upload.upload);
 app.listen(8888, () => {
     console.log(`Rabbit WebServer / ${SERVER_VERSION} is running on port 8888.`);
 });
+
+if (MODE !== "DEV" && !fs.existsSync("/var/sweet/install.lock")) {
+    fs.writeFileSync("/var/sweet/install.lock", "1");
+    require("./utils/initData.js");
+    console.log("Init data OK!");
+}

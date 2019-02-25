@@ -9,10 +9,13 @@ services:
             - 27017:27017
         command:
             - mongod
+        volumes:
+            - mongo:/data/db
     sweet:
         build: .
         environment:
             - SECRET=__hZy__TqL__
+            - MODE=production
         ports:
             - 8888:8888
         links:
@@ -21,8 +24,13 @@ services:
             - mongodb
         restart: always
         command:
-            - initialize
+            - start
+        volumes:
+            - sweet:/var/sweet
     redis:
         image: redis
         stdin_open: true
         tty: true
+volumes:
+    mongo:
+    sweet:

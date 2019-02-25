@@ -8,7 +8,6 @@ RUN yarn
 
 COPY . .
 RUN yarn run compile
-RUN yarn run init
 
 CMD [ "start" ]
 ENTRYPOINT [ "yarn" ]
