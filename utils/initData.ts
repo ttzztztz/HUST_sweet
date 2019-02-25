@@ -1,12 +1,15 @@
+require("dotenv").config();
+
 import { dbConnect } from "../model/db";
 import { IUser } from "../typings/types";
+import { addSaltPassword } from "../model/md5";
 
 (async () => {
     const { db, client } = await dbConnect();
     try {
         const insertObj: IUser = {
             username: "admin",
-            password: "",
+            password: addSaltPassword("admin"),
             email: "admin@admin.com",
             isAdmin: true,
             golds: 0,

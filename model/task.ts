@@ -4,6 +4,7 @@ import { ObjectID } from "mongodb";
 import { PAGESIZE } from "./consts";
 import { verifyJWT } from "./jwt";
 import { ITask, IUserTask, FILE_OK, FILE_PENDING, IFile } from "../typings/types";
+import { fileProcess } from "./file";
 
 export const list = async function(req: Request, res: Response) {
     const { page } = req.params;
@@ -23,7 +24,9 @@ export const list = async function(req: Request, res: Response) {
                 }
             ])
             .toArray();
-        res.json({ code: 1, msg: result });
+        const listCount = await db.collection("task").countDocuments({});
+
+        res.json({ code: 1, msg: { list: result, count: listCount } });
     } catch (e) {
         console.log(e);
         res.json({ code: -1, msg: e.message });
@@ -42,13 +45,17 @@ export const item = async function(req: Request, res: Response) {
             _id: new ObjectID(tid)
         });
 
-        const done = await db.collection("userTask").findOne({
+        const done = (await db.collection("userTask").findOne({
             uid: uid,
             tid: tid
-        });
+        })) as IUserTask;
 
         if (result) {
-            res.json({ code: 1, msg: { ...result, done: !!done } });
+            if (done) {
+                res.json({ code: 1, msg: { ...result, done: !!done, finishDate: done.time } });
+            } else {
+                res.json({ code: 1, msg: { ...result, done: !!done } });
+            }
         } else {
             res.json({ code: -1, msg: "该任务不存在！" });
         }
@@ -61,10 +68,11 @@ export const item = async function(req: Request, res: Response) {
 };
 
 export const commit = async function(req: Request, res: Response) {
-    const { tid, fid } = req.params;
+    // TODO: redlock
+    const { tid, fid } = req.body;
     const { db, client } = await dbConnect();
     try {
-        const { uid } = verifyJWT(req.header("Authorization"));
+        const { uid, isAdmin } = verifyJWT(req.header("Authorization"));
 
         const done = await db.collection("userTask").findOne({
             uid: uid,
@@ -83,7 +91,23 @@ export const commit = async function(req: Request, res: Response) {
         })) as IFile | undefined;
 
         if (!fileObj) {
-            res.json({ code: -1, msg: fileObj });
+            res.json({ code: -1, msg: "文件不存在！" });
+            return;
+        }
+
+        const taskInfo = (await db.collection("task").findOne({
+            _id: new ObjectID(tid)
+        })) as ITask | undefined;
+
+        if (!taskInfo) {
+            res.json({ code: -1, msg: "任务不存在！" });
+            return;
+        }
+
+        const resultFileProcess = await fileProcess(fid, tid, uid, isAdmin);
+
+        if (!resultFileProcess) {
+            res.json({ code: -1, msg: "文件处理失败！" });
             return;
         }
 
@@ -94,13 +118,33 @@ export const commit = async function(req: Request, res: Response) {
             time: new Date()
         };
 
-        await db.collection("userTask").update(
+        await db.collection("userTask").updateOne(
             {
                 _id: fileObj!._id!
             },
             {
-                status: FILE_OK,
-                tid: new ObjectID(tid)
+                $set: {
+                    status: FILE_OK,
+                    tid: new ObjectID(tid)
+                }
+            }
+        );
+
+        await db.collection("user").updateOne(
+            {
+                _id: new ObjectID(uid)
+            },
+            {
+                $inc: { golds: taskInfo!.bonus }
+            }
+        );
+
+        await db.collection("task").updateOne(
+            {
+                _id: new ObjectID(tid)
+            },
+            {
+                $inc: { finishedCount: 1 }
             }
         );
 
@@ -109,7 +153,7 @@ export const commit = async function(req: Request, res: Response) {
         if (result.insertedCount) {
             res.json({ code: 1, msg: result.insertedId });
         } else {
-            res.json({ code: -1 });
+            res.json({ code: -1, msg: "未知错误！" });
         }
     } catch (e) {
         console.log(e);
@@ -132,7 +176,7 @@ export const create = async function(req: Request, res: Response) {
         const insertObj: ITask = {
             content: content,
             readContent: readContent,
-            bonus: bonus,
+            bonus: +bonus,
             finishedCount: 0,
             createDate: new Date()
         };
@@ -142,7 +186,7 @@ export const create = async function(req: Request, res: Response) {
         if (result.insertedCount) {
             res.json({ code: 1, msg: result.insertedId });
         } else {
-            res.json({ code: -1 });
+            res.json({ code: -1, msg: "未知错误！" });
         }
     } catch (e) {
         console.log(e);

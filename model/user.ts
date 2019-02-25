@@ -70,12 +70,14 @@ export const login = async function(req: Request, res: Response) {
         const user = userResult as IUser;
 
         if (user.password === pwd_md5) {
-            db.collection("user").update(
+            db.collection("user").updateOne(
                 {
                     _id: new ObjectID(user._id!)
                 },
                 {
-                    lastLogin: new Date()
+                    $set: {
+                        lastLogin: new Date()
+                    }
                 }
             );
 
@@ -85,7 +87,8 @@ export const login = async function(req: Request, res: Response) {
                     token: signJWT(user._id!.toHexString(), user.username, user.isAdmin),
                     username: user.username,
                     isAdmin: user.isAdmin,
-                    golds: user.golds
+                    golds: user.golds,
+                    email: user.email
                 }
             });
         } else {
@@ -114,7 +117,8 @@ export const info = async function(req: Request, res: Response) {
             msg: {
                 username: user.username,
                 isAdmin: user.isAdmin,
-                golds: user.golds
+                golds: user.golds,
+                email: user.email
             }
         });
     } catch (e) {

@@ -41,6 +41,7 @@ export interface IFile {
     status: FileStatus;
     uid: ObjectID;
     time: Date;
+    path: string;
 }
 
 export interface IJWT {

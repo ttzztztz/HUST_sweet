@@ -41,17 +41,17 @@ const upload = multer({
     storage: storage,
     limits: { fileSize: 20971520 },
     fileFilter: fileFilter
-}); //20MB
+});
 
 //User
-app.get("/user/info/:uid", User.info);
+app.get("/user/info/:username", User.info);
 app.post("/user/login", User.login);
 app.post("/user/reg", User.reg);
 
 //Task
 app.get("/task/list/:page", Task.list);
 app.get("/task/item/:tid", Task.item);
-app.post("/task/commit/:tid/:fid", Task.commit);
+app.post("/task/commit", Task.commit);
 app.post("/task/create", Task.create);
 
 //Upload

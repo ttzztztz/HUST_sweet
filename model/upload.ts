@@ -15,7 +15,8 @@ export const upload = async function(req: Request, res: Response) {
         const fileObj: IFile = {
             status: FILE_PENDING,
             uid: new ObjectID(uid),
-            time: new Date()
+            time: new Date(),
+            path: fileItem.destination + fileItem.filename
         };
 
         const result = await db.collection("file").insertOne(fileObj);
@@ -23,7 +24,7 @@ export const upload = async function(req: Request, res: Response) {
         if (result.insertedCount) {
             res.json({ code: 1, msg: result.insertedId });
         } else {
-            res.json({ code: -1 });
+            res.json({ code: -1, msg: "未知错误！" });
         }
     } catch (e) {
         res.json({ code: -1, msg: e.message });

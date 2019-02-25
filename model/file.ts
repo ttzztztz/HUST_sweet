@@ -1,6 +1,9 @@
 import fs from "fs";
 import { MODE } from "./consts";
 import { verifyJWT } from "./jwt";
+import { dbConnect } from "./db";
+import { ObjectID } from "mongodb";
+import { IFile, FILE_OK } from "../typings/types";
 
 export const fileDestination = function(
     _req: Express.Request,
@@ -52,4 +55,52 @@ export const fileDelete = function(filename: string) {
     } catch (e) {
         console.log(e);
     }
+};
+
+export const fileMove = function(fromPath: string, toPath: string) {
+    return fs.renameSync(fromPath, toPath);
+};
+
+export const fileProcess = async function(fid: string, tid: string, uid: string, isAdmin: boolean) {
+    const { db, client } = await dbConnect();
+
+    try {
+        const date = new Date();
+        const dirName =
+            date.getFullYear().toString() + "_" + (date.getMonth() + 1).toString() + "_" + date.getDate().toString();
+
+        const attach = (await db.collection("file").findOne({
+            _id: new ObjectID(fid)
+        })) as IFile;
+        const attachUid = attach.uid.toHexString();
+
+        if (!isAdmin && attachUid !== uid) {
+            return false;
+        }
+
+        const oldPath = attach.path;
+        const newDir = MODE === "DEV" ? `./upload/${dirName}` : `/var/sweet/upload/${dirName}`;
+        const newPath = `${newDir}/${new Date().getTime().toString()}_${fid}.rabbit`;
+
+        if (!fs.existsSync(newDir)) fs.mkdirSync(newDir);
+        fileMove(oldPath, newPath);
+
+        await db.collection("file").updateOne(
+            {
+                _id: new ObjectID(fid)
+            },
+            {
+                $set: {
+                    path: newPath,
+                    tid: new ObjectID(tid),
+                    status: FILE_OK
+                }
+            }
+        );
+    } catch (e) {
+        console.log(e);
+    } finally {
+        client.close();
+    }
+    return true;
 };
