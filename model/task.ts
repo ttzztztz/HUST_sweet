@@ -3,7 +3,7 @@ import { Request, Response } from "express";
 import { ObjectID } from "mongodb";
 import { PAGESIZE } from "./consts";
 import { verifyJWT } from "./jwt";
-import { ITask, IUserTask, FILE_OK, FILE_PENDING, IFile } from "../typings/types";
+import { ITask, IUserTask, FILE_OK, FILE_PENDING, IFile, IPointItem, STATUS_CHECKING } from "../typings/types";
 import { fileProcess } from "./file";
 import { redLock } from "../server";
 
@@ -11,7 +11,9 @@ export const list = async function(req: Request, res: Response) {
     const { page } = req.params;
     const { db, client } = await dbConnect();
     try {
-        const result = await db
+        const { uid } = verifyJWT(req.header("Authorization"));
+
+        const resultRaw = await db
             .collection("task")
             .aggregate([
                 {
@@ -25,6 +27,20 @@ export const list = async function(req: Request, res: Response) {
                 }
             ])
             .toArray();
+
+        const result = await Promise.all(
+            resultRaw.map(async item => {
+                const finished = await db.collection("userTask").findOne({
+                    uid: new ObjectID(uid),
+                    tid: new ObjectID(item.tid)
+                });
+
+                return {
+                    ...item,
+                    finished: !!finished
+                };
+            })
+        );
         const listCount = await db.collection("task").countDocuments({});
 
         res.json({ code: 1, msg: { list: result, count: listCount } });
@@ -47,8 +63,8 @@ export const item = async function(req: Request, res: Response) {
         });
 
         const done = (await db.collection("userTask").findOne({
-            uid: uid,
-            tid: tid
+            uid: new ObjectID(uid),
+            tid: new ObjectID(tid)
         })) as IUserTask;
 
         if (result) {
@@ -68,20 +84,37 @@ export const item = async function(req: Request, res: Response) {
     }
 };
 
+export const download = async function(req: Request, res: Response) {
+    const { id } = req.params;
+    const { db, client } = await dbConnect();
+    try {
+        verifyJWT(req.header("Authorization"));
+
+        const fileInfo = (await db.collection("file").findOne({
+            _id: new ObjectID(id)
+        })) as IFile;
+
+        res.download(fileInfo.path);
+    } catch (e) {
+        console.log(e);
+        res.json({ code: -1, msg: e.message });
+    } finally {
+        client.close();
+    }
+};
+
 export const commit = async function(req: Request, res: Response) {
-    // TODO: redlock
-    const { tid, fid } = req.body;
+    const { tid, fid, points } = req.body;
     const { db, client } = await dbConnect();
     try {
         const { uid, isAdmin } = verifyJWT(req.header("Authorization"));
 
-        //Lock User
         const lockUser = await redLock.lock(`User:${uid}`, 2000);
 
         try {
             const done = await db.collection("userTask").findOne({
-                uid: uid,
-                tid: tid
+                uid: new ObjectID(uid),
+                tid: new ObjectID(tid)
             });
 
             if (done) {
@@ -120,7 +153,9 @@ export const commit = async function(req: Request, res: Response) {
                 uid: new ObjectID(uid),
                 tid: new ObjectID(tid),
                 fid: new ObjectID(fid),
-                time: new Date()
+                time: new Date(),
+                points: points as Array<IPointItem>,
+                status: STATUS_CHECKING
             };
 
             await db.collection("userTask").updateOne(

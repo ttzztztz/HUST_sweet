@@ -14,7 +14,8 @@ import { addSaltPassword } from "../model/md5";
             isAdmin: true,
             golds: 0,
             createDate: new Date(),
-            lastLogin: new Date()
+            lastLogin: new Date(),
+            mobile: "13838383838"
         };
         await db.collection("user").insertOne(insertObj);
     } catch (e) {

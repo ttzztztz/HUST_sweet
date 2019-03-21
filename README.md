@@ -1,5 +1,10 @@
 # HUST_SWEET 后端接口文档
 
+### 一些鸽子
+
+-   没有资金申请腾讯云/阿里云短信接口，暂时手机验证码功能，鸽了
+-   username 是绑定 JWT 里的，修改 username 有点复杂，暂时鸽了
+
 ### 约定
 
 -   每页元素数量 20，即 `PAGESIZE = 20`
@@ -23,7 +28,11 @@
             -   application/x-www-form-urlencoded
     -   请求体
         -   email
-            -   电子邮箱
+            -   电子邮箱（唯一）
+            -   String
+        -   mobile
+            -   手机账号（唯一）
+            -   ~~目前没有申请腾讯云/阿里云的发送短信接口，手机号码验证功能先鸽了~~
             -   String
         -   username
             -   用户名（唯一）
@@ -58,7 +67,7 @@
             -   application/x-www-form-urlencoded
     -   请求体
         -   username
-            -   用户名
+            -   用户名、手机号、邮箱，三选一，均可接受，服务端自动判断
             -   String
         -   password
             -   密码（MD5 在前端加密后，传输的是加密以后的、小写、32 位）
@@ -138,6 +147,73 @@
     }
     ```
 
+-   更改密码
+
+    -   POST
+    -   URL `./user/pwd`
+    -   请求头
+        -   Content-Type
+            -   application/x-www-form-urlencoded
+        -   Authorization
+            -   登录时获得的 token
+    -   请求体
+        -   oldPwd
+            -   String
+            -   旧密码的 MD5（前端 MD5 计算后的结果）
+        -   newPwd
+            -   String
+            -   新密码的 MD5（前端 MD5 计算后的结果）
+    -   返回值
+        -   code
+            -   Number
+            -   状态信息
+            -   1 为成功，其余均为失败
+        -   msg
+            -   如果获取成功，为 空
+            -   如果获取失败，为失败原因，为 String
+    -   样例输出
+
+    ```json
+    {
+        "code": 1
+    }
+    ```
+
+-   更新资料
+
+    -   GET
+    -   URL `./user/update`
+    -   请求头
+        -   Content-Type
+            -   application/x-www-form-urlencoded
+        -   Authorization
+            -   登录时获得的 token
+    -   请求体
+        -   mobile
+            -   String
+            -   手机号
+        -   region
+            -   String
+            -   地区
+        -   isDialect
+            -   Boolean
+            -   是否是方言
+    -   返回值
+        -   code
+            -   Number
+            -   状态信息
+            -   1 为成功，其余均为失败
+        -   msg
+            -   如果获取成功，为 空
+            -   如果获取失败，为失败原因，为 String
+    -   样例输出
+
+    ```json
+    {
+        "code": 1
+    }
+    ```
+
 ### 任务部分
 
 -   创建任务
@@ -212,7 +288,8 @@
                     "readContent": "洪志远太强了",
                     "bonus": "20",
                     "finishedCount": 0,
-                    "createDate": "2019-02-25T08:35:54.595Z"
+                    "createDate": "2019-02-25T08:35:54.595Z",
+                    "finished": false
                 }
             ],
             "count": 1
@@ -220,9 +297,9 @@
     }
     ```
 
--   任务详情
+-   任务提交
 
-    -   GET
+    -   POST
     -   URL `./task/commit`
     -   请求头
         -   Content-Type
@@ -230,33 +307,6 @@
         -   Authorization
             -   登录时获得的 token
             -   必须已经登录
-    -   返回值
-        -   code
-            -   Number
-            -   状态信息
-            -   1 为成功，其余均为失败
-        -   msg
-            -   如果获取成功，为 空（不含该字段）
-            -   如果获取失败，为失败原因，为 String
-    -   样例输出
-
-    ```json
-    {
-        "code": 1,
-        "msg": "5c73a8eae5033a4b80a4f460"
-    }
-    ```
-
--   任务提交
-
-    -   POST
-    -   URL `./task/create`
-    -   请求头
-        -   Content-Type
-            -   application/x-www-form-urlencoded
-        -   Authorization
-            -   登录时获得的 token
-            -   必须是管理员账号
     -   请求体
         -   content
             -   String
@@ -273,7 +323,7 @@
             -   状态信息
             -   1 为成功，其余均为失败
         -   msg
-            -   如果获取成功，为 ObjectID
+            -   如果获取成功，为该数据库储存的新 Id
             -   如果获取失败，为失败原因，为 String
     -   样例输出
 
@@ -281,6 +331,41 @@
     {
         "code": 1,
         "msg": "5c73a8eae5033a4b80a4f460"
+    }
+    ```
+
+-   任务详情
+
+    -   POST
+    -   URL `./task/item/${tid}`
+    -   请求头
+        -   Content-Type
+            -   application/x-www-form-urlencoded
+        -   Authorization
+            -   登录时获得的 token
+    -   请求体
+        将\${tid}替换为对应的任务 Id 即可
+    -   返回值
+        -   code
+            -   Number
+            -   状态信息
+            -   1 为成功，其余均为失败
+        -   msg
+            -   如果获取成功，为 Object
+            -   如果获取失败，为失败原因，为 String
+    -   样例输出
+
+    ```json
+    {
+        "code": 1,
+        "msg": {
+            "_id": "5c73a8eae5033a4b80a4f460",
+            "content": "让我们一起来阅读：洪志远太强了",
+            "readContent": "洪志远太强了",
+            "bonus": "20",
+            "finishedCount": 0,
+            "createDate": "2019-02-25T08:35:54.595Z"
+        }
     }
     ```
 
@@ -313,6 +398,26 @@
         "msg": "5c73dced3c66210f3c527558"
     }
     ```
+
+-   下载录音
+
+    -   GET
+    -   URL `./task/download/${id}`
+    -   请求头
+        -   Content-Type
+            -   application/x-www-form-urlencoded
+        -   Authorization
+            -   登录时获得的 token
+    -   请求体
+        将\${id}替换为对应的录音 Id 即可
+    -   返回值
+        -   如果获取成功，则直接下载文件
+        -   如果失败
+            -   code
+                -   Number
+                -   一定是-1
+            -   msg
+                -   失败原因，为 String
 
 ### HUST_SWEET 部署文档 docker，可轻松利用 k8s、rancher 等实现扩展、负载均衡
 

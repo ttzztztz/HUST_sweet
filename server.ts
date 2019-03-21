@@ -63,10 +63,14 @@ export const redLock = new Redlock([redisClient], {
 app.get("/user/info/:username", User.info);
 app.post("/user/login", User.login);
 app.post("/user/reg", User.reg);
+app.post("/user/pwd", User.pwd);
+app.post("/user/update", User.update);
+app.get("/user/tasks/:page", User.tasks);
 
 //Task
 app.get("/task/list/:page", Task.list);
 app.get("/task/item/:tid", Task.item);
+app.get("/task/download/:id", Task.download);
 app.post("/task/commit", Task.commit);
 app.post("/task/create", Task.create);
 

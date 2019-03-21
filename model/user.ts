@@ -4,22 +4,23 @@ import { addSaltPasswordOnce } from "./md5";
 import { IUser } from "../typings/types";
 import { signJWT, verifyJWT } from "./jwt";
 import { ObjectID } from "mongodb";
+import { PAGESIZE } from "./consts";
 
 export const reg = async function(req: Request, res: Response) {
     const { db, client } = await dbConnect();
 
     try {
-        const { email, username, password } = req.body;
+        const { email, username, password, mobile } = req.body;
 
         const existCheck = await db
             .collection("user")
             .find({
-                $or: [{ username: username }, { email: email }]
+                $or: [{ username: username }, { email: email }, { mobile: mobile }]
             })
             .toArray();
 
         if (existCheck.length !== 0) {
-            res.json({ code: -1, msg: "用户名或电子邮箱已存在！" });
+            res.json({ code: -1, msg: "用户名或电子邮箱或手机号码已存在！" });
             return;
         }
 
@@ -28,11 +29,14 @@ export const reg = async function(req: Request, res: Response) {
         const userObj: IUser = {
             username: username,
             password: pwd_md5,
+            mobile: mobile,
             email: email,
             isAdmin: false,
             golds: 0,
             lastLogin: new Date(),
-            createDate: new Date()
+            createDate: new Date(),
+            region: "武汉",
+            isDialect: false
         };
 
         const result = await db.collection("user").insertOne(userObj);
@@ -58,12 +62,25 @@ export const login = async function(req: Request, res: Response) {
 
         const pwd_md5 = addSaltPasswordOnce(password);
 
-        const userResult = await db.collection("user").findOne({
-            username: username
-        });
+        const [userResult] = await db
+            .collection("user")
+            .find({
+                $or: [
+                    {
+                        username: username
+                    },
+                    {
+                        mobile: username
+                    },
+                    {
+                        email: username
+                    }
+                ]
+            })
+            .toArray();
 
         if (!userResult) {
-            res.json({ code: -1, msg: "用户名不存在！" });
+            res.json({ code: -1, msg: "用户不存在！" });
             return;
         }
 
@@ -120,6 +137,128 @@ export const info = async function(req: Request, res: Response) {
                 golds: user.golds,
                 email: user.email
             }
+        });
+    } catch (e) {
+        res.json({ code: -1, msg: e.message });
+        console.log(e);
+    } finally {
+        client.close();
+    }
+};
+
+export const update = async function(req: Request, res: Response) {
+    const { db, client } = await dbConnect();
+
+    try {
+        const { username } = verifyJWT(req.header("Authorization"));
+
+        const { mobile, region, isDialect } = req.body;
+        await db.collection("user").updateOne(
+            {
+                username: username
+            },
+            {
+                $set: {
+                    mobile,
+                    region,
+                    isDialect: !!isDialect
+                }
+            }
+        );
+
+        res.json({
+            code: 1
+        });
+    } catch (e) {
+        res.json({ code: -1, msg: e.message });
+        console.log(e);
+    } finally {
+        client.close();
+    }
+};
+
+export const pwd = async function(req: Request, res: Response) {
+    const { db, client } = await dbConnect();
+
+    try {
+        const { username } = verifyJWT(req.header("Authorization"));
+        const { oldPwd, newPwd } = req.body;
+
+        const oldPwdMd5 = addSaltPasswordOnce(oldPwd);
+        const newPwdMd5 = addSaltPasswordOnce(newPwd);
+
+        const user = (await db.collection("user").findOne({
+            username: username
+        })) as IUser;
+
+        if (user.password === oldPwdMd5) {
+            db.collection("user").updateOne(
+                {
+                    _id: new ObjectID(user._id!)
+                },
+                {
+                    $set: {
+                        password: newPwdMd5
+                    }
+                }
+            );
+
+            res.json({
+                code: 1
+            });
+        } else {
+            res.json({ code: -1, msg: "密码错误！" });
+        }
+    } catch (e) {
+        res.json({ code: -1, msg: e.message });
+        console.log(e);
+    } finally {
+        client.close();
+    }
+};
+
+export const tasks = async function(req: Request, res: Response) {
+    const { db, client } = await dbConnect();
+
+    try {
+        const { uid } = verifyJWT(req.header("Authorization"));
+        const { page } = req.params;
+        const { type } = req.body; //Extended 2:ALL
+
+        const matchObj = +type === 2 ? { uid: new ObjectID(uid) } : { uid: new ObjectID(uid), status: +type };
+
+        const myTaskListRaw = await db
+            .collection("userTask")
+            .aggregate([
+                {
+                    $match: matchObj
+                },
+                {
+                    $sort: {
+                        time: -1
+                    }
+                },
+                {
+                    $skip: (+page - 1) * PAGESIZE
+                },
+                {
+                    $limit: PAGESIZE
+                }
+            ])
+            .toArray();
+
+        const myTaskList = await Promise.all(
+            myTaskListRaw.map(async item => ({
+                ...item,
+                taskInfo: await db.collection("task").findOne({
+                    _id: new ObjectID(item.tid)
+                })
+            }))
+        );
+
+        res.json({
+            code: 1,
+            msg: myTaskList
         });
     } catch (e) {
         res.json({ code: -1, msg: e.message });
