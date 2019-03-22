@@ -107,7 +107,8 @@ export const login = async function(req: Request, res: Response) {
                     username: user.username,
                     isAdmin: user.isAdmin,
                     golds: user.golds,
-                    email: user.email
+                    email: user.email,
+                    uid: user._id!.toHexString()
                 }
             });
         } else {
@@ -335,6 +336,10 @@ export const dashboard = async function(req: Request, res: Response) {
     try {
         const { uid } = verifyJWT(req.header("Authorization"));
 
+        const userInfo = (await db.collection("user").findOne({
+            _id: new ObjectID(uid)
+        })) as IUser;
+
         const task = {
             waiting: await db.collection("userTask").countDocuments({
                 uid: new ObjectID(uid),
@@ -375,7 +380,13 @@ export const dashboard = async function(req: Request, res: Response) {
                 record: {
                     ...record,
                     total: record.waiting + record.ok + record.failed
-                }
+                },
+                golds: userInfo.golds,
+                region: userInfo.region,
+                mobile: userInfo.mobile,
+                isDialect: userInfo.isDialect,
+                username: userInfo.username,
+                uid: userInfo._id!
             }
         });
     } catch (e) {
