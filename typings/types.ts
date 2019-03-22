@@ -42,6 +42,14 @@ export interface IUserTask {
     uid: ObjectID;
     tid: ObjectID;
     fid: ObjectID;
+    status: STATUS_CHECKING | STATUS_FAILURE | STATUS_OK;
+    time: Date;
+}
+
+export interface IRecord {
+    _id?: ObjectID;
+    uid: ObjectID;
+    tid: ObjectID;
     points: Array<IPointItem>;
     status: STATUS_CHECKING | STATUS_FAILURE | STATUS_OK;
     time: Date;

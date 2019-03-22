@@ -297,6 +297,48 @@
     }
     ```
 
+-   标注列表
+
+    -   GET
+    -   URL `./record/list/${page}`
+        -   将 page 替换为页码数，从 1 开始
+    -   请求头
+        -   Content-Type
+            -   application/x-www-form-urlencoded
+    -   返回值
+        -   code
+            -   Number
+            -   状态信息
+            -   1 为成功，其余均为失败
+        -   msg
+            -   如果获取成功，为 Object
+                -   count
+                    -   Number
+                    -   所有的任务总数，用于计算分页（PAGESIZE）
+                -   list
+                    -   Array<Item>
+                    -   当前页面每一个任务的简略信息
+            -   如果获取失败，为失败原因，为 String
+    -   样例输出
+
+    ```json
+    {
+        "code": 1,
+        "msg": {
+            "list": [
+                {
+                    "_id": "5c73a8eae5033a4b80a4f460",
+                    "uid": "5c73a8eae5033a4b80a4f977",
+                    "tid": "5c73a8eae5033a4b80a9b855",
+                    "status": "1",
+                    "time": "2019-02-25T08:35:54.595Z"
+                }
+            ],
+            "count": 1
+        }
+    }
+    ```
+
 -   任务提交
 
     -   POST
@@ -308,15 +350,12 @@
             -   登录时获得的 token
             -   必须已经登录
     -   请求体
-        -   content
+        -   tid
             -   String
-            -   描述、介绍的内容
-        -   readContent
+            -   任务 id
+        -   fid
             -   String
-            -   要求用户阅读的内容
-        -   bonus
-            -   Number（最好是 Int）
-            -   阅读完毕用户获得的金币奖励
+            -   返回的文件 id
     -   返回值
         -   code
             -   Number
@@ -353,6 +392,11 @@
         -   msg
             -   如果获取成功，为 Object
             -   如果获取失败，为失败原因，为 String
+            -   关于 `status` 状态问题
+                -   只有提交过才会显示 `status` 参数
+                -   审核中 0
+                -   审核成功 1
+                -   审核失败 -1
     -   样例输出
 
     ```json
@@ -364,7 +408,11 @@
             "readContent": "洪志远太强了",
             "bonus": "20",
             "finishedCount": 0,
-            "createDate": "2019-02-25T08:35:54.595Z"
+            "createDate": "2019-02-25T08:35:54.595Z",
+            "done": true,
+            "finishDate": "2019-02-25T08:40:11.595Z",
+            "recordDone": false,
+            "status": 1
         }
     }
     ```
@@ -402,7 +450,7 @@
 -   下载录音
 
     -   GET
-    -   URL `./task/download/${id}`
+    -   URL `./record/download/${id}`
     -   请求头
         -   Content-Type
             -   application/x-www-form-urlencoded
@@ -418,6 +466,348 @@
                 -   一定是-1
             -   msg
                 -   失败原因，为 String
+
+-   标注提交
+
+    -   POST
+    -   URL `./record/commit`
+    -   请求头
+        -   Content-Type
+            -   application/x-www-form-urlencoded
+        -   Authorization
+            -   登录时获得的 token
+            -   必须已经登录
+    -   请求体
+        -   tid
+            -   String
+            -   任务 id
+        -   points
+            -   Array<Item>
+            -   标注坐标信息
+                -   每个 Item 的结构如下
+                -   begin
+                    -   Number
+                    -   开始的时间
+                -   end
+                    -   Number
+                    -   结束的时间
+                -   text
+                    -   String
+                    -   标注的内容
+    -   返回值
+        -   code
+            -   Number
+            -   状态信息
+            -   1 为成功，其余均为失败
+        -   msg
+            -   如果获取成功，为该数据库储存的新 Id
+            -   如果获取失败，为失败原因，为 String
+    -   样例输出
+
+    ```json
+    {
+        "code": 1,
+        "msg": "5c73a8eae5033a4b80a4f460"
+    }
+    ```
+
+-   录音审核
+
+    -   POST
+    -   URL `./record/check`
+    -   请求头
+        -   Content-Type
+            -   application/x-www-form-urlencoded
+        -   Authorization
+            -   登录时获得的 token
+            -   必须拥有管理员权限
+    -   请求体
+        -   id
+            -   String
+            -   提交的 ID
+        -   status
+            -   审核状态
+            -   -1 状态变更为失败
+            -   0 状态变更为未审核
+            -   1 状态变更为审核成功，并且赠送金币
+    -   注意
+        -   如果已经审核、或者重复提交相同状态的审核，会返回错误提示
+    -   返回值
+        -   code
+            -   Number
+            -   状态信息
+            -   1 为成功，其余均为失败
+        -   msg
+            -   如果获取成功，为该数据库储存的新 Id
+            -   如果获取失败，为失败原因，为 String
+    -   样例输出
+
+    ```json
+    {
+        "code": 1
+    }
+    ```
+
+-   标注审核
+
+    -   POST
+    -   URL `./record/check`
+    -   请求头
+        -   Content-Type
+            -   application/x-www-form-urlencoded
+        -   Authorization
+            -   登录时获得的 token
+            -   必须拥有管理员权限
+    -   请求体
+        -   rid
+            -   String
+            -   标注的 ID
+        -   status
+            -   审核状态
+            -   -1 状态变更为失败
+            -   0 状态变更为未审核
+            -   1 状态变更为审核成功，并且赠送金币
+    -   注意
+        -   如果已经审核、或者重复提交相同状态的审核，会返回错误提示
+    -   返回值
+        -   code
+            -   Number
+            -   状态信息
+            -   1 为成功，其余均为失败
+        -   msg
+            -   如果获取成功，为该数据库储存的新 Id
+            -   如果获取失败，为失败原因，为 String
+    -   样例输出
+
+    ```json
+    {
+        "code": 1
+    }
+    ```
+
+-   任务的录音列表
+
+    -   GET
+    -   URL `./task/record/${tid}/${page}`
+    -   请求头
+        -   Content-Type
+            -   application/x-www-form-urlencoded
+        -   Authorization
+            -   登录时获得的 token
+    -   请求体
+        -   将\${tid}替换为对应的任务 Id
+        -   将\${page}替换为页码，从 1 开始
+    -   返回值
+        -   code
+            -   Number
+            -   状态信息
+            -   1 为成功，其余均为失败
+        -   msg
+            -   如果获取成功，为 Object
+            -   如果获取失败，为失败原因，为 String
+            -   关于 `status` 状态问题
+                -   只有提交过才会显示 `status` 参数
+                -   审核中 0
+                -   审核成功 1
+                -   审核失败 -1
+    -   样例输出
+
+    ```json
+    {
+        "code": 1,
+        "msg": {
+            "list": [
+                {
+                    "_id": "5c73a8eae5033a4b80a4f460",
+                    "uid": "5c73a8eae5033a4b80a4f977",
+                    "tid": "5c73a8eae5033a4b80a9b855",
+                    "status": "1",
+                    "points": [{ "begin": 1.2, "end": 2.4, "text": "洪" }, { "begin": 2.4, "end": 2.9, "text": "志" }],
+                    "time": "2019-02-25T08:35:54.595Z"
+                }
+            ],
+            "count": 1
+        }
+    }
+    ```
+
+-   个人仪表盘
+
+    -   GET
+    -   URL `./user/dashboard`
+    -   请求头
+        -   Content-Type
+            -   application/x-www-form-urlencoded
+        -   Authorization
+            -   登录时获得的 token
+    -   请求体
+        无
+    -   返回值
+        -   code
+            -   Number
+            -   状态信息
+            -   1 为成功，其余均为失败
+        -   msg
+            -   如果获取成功，为 Object
+            -   如果获取失败，为失败原因，为 String
+    -   样例输出
+
+    ```json
+    {
+        "code": 1,
+        "msg": {
+            "task": {
+                "waiting": 2,
+                "ok": 4,
+                "failed": 1,
+                "total": 7
+            },
+            "record": {
+                "waiting": 2,
+                "ok": 4,
+                "failed": 1,
+                "total": 7
+            }
+        }
+    }
+    ```
+
+-   我的提交过的录音列表
+
+    -   GET
+    -   URL `./user/tasks/${page}`
+        -   将 page 替换为页码数，从 1 开始
+    -   请求头
+        -   Content-Type
+            -   application/x-www-form-urlencoded
+    -   返回值
+        -   code
+            -   Number
+            -   状态信息
+            -   1 为成功，其余均为失败
+        -   msg
+            -   如果获取成功，为 Object
+                -   count
+                    -   Number
+                    -   所有的任务总数，用于计算分页（PAGESIZE）
+                -   list
+                    -   Array<Item>
+                    -   当前页面每一个任务的简略信息（brief infomation）
+            -   如果获取失败，为失败原因，为 String
+    -   样例输出
+
+    ```json
+    {
+        "code": 1,
+        "msg": {
+            "list": [
+                {
+                    "_id": "5c73a8eae5033a4b80a4f460",
+                    "content": "让我们一起来阅读：洪志远太强了",
+                    "readContent": "洪志远太强了",
+                    "bonus": "20",
+                    "finishedCount": 0,
+                    "createDate": "2019-02-25T08:35:54.595Z",
+                    "done": true,
+                    "finishDate": "2019-02-25T08:40:11.595Z",
+                    "recordDone": false,
+                    "status": 1
+                }
+            ],
+            "count": 1
+        }
+    }
+    ```
+
+-   我的提交过的标注列表
+
+    -   GET
+    -   URL `./user/records/${page}`
+        -   将 page 替换为页码数，从 1 开始
+    -   请求头
+        -   Content-Type
+            -   application/x-www-form-urlencoded
+    -   返回值
+        -   code
+            -   Number
+            -   状态信息
+            -   1 为成功，其余均为失败
+        -   msg
+            -   如果获取成功，为 Object
+                -   count
+                    -   Number
+                    -   所有的任务总数，用于计算分页（PAGESIZE）
+                -   list
+                    -   Array<Item>
+                    -   当前页面每一个任务的简略信息（brief infomation）
+            -   如果获取失败，为失败原因，为 String
+    -   样例输出
+
+    ```json
+    {
+        "code": 1,
+        "msg": {
+            "list": [
+                {
+                    "_id": "5c73a8eae5033a4b80a4f460",
+                    "uid": "5c73a8eae5033a4b80a4f977",
+                    "tid": "5c73a8eae5033a4b80a9b855",
+                    "status": "1",
+                    "points": [{ "begin": 1.2, "end": 2.4, "text": "洪" }, { "begin": 2.4, "end": 2.9, "text": "志" }],
+                    "time": "2019-02-25T08:35:54.595Z"
+                }
+            ],
+            "count": 1
+        }
+    }
+    ```
+
+-   获取用户的头像
+
+    -   GET
+    -   URL `./user/avatar/${uid}`
+        -   将 uid 替换为用户的 id
+    -   请求头
+        -   Content-Type
+            -   application/x-www-form-urlencoded
+    -   返回值
+        -   如果获取成功，直接可以下载文件
+        -   如果获取失败
+            -   code
+                -   Number
+                -   一定是-1
+            -   msg
+                -   失败理由
+
+-   修改用户的头像
+
+-   POST
+
+    -   URL `./avatar`
+    -   请求头
+        -   Content-Type
+            -   multipart/form-data
+        -   Authorization
+            -   登录时获得的 token
+            -   必须已经登录才能上传录音
+    -   field
+        -   avatar
+            -   上传的头像
+    -   返回值
+        -   code
+            -   Number
+            -   状态信息
+            -   1 为成功，其余均为失败
+        -   msg
+            -   如果获取成功，不包含该字段
+            -   如果获取失败，为失败原因，为 String
+    -   样例输出
+
+    ```json
+    {
+        "code": 1
+    }
+    ```
 
 ### HUST_SWEET 部署文档 docker，可轻松利用 k8s、rancher 等实现扩展、负载均衡
 

@@ -1,10 +1,12 @@
 import { dbConnect } from "./db";
 import { Request, Response } from "express";
 import { addSaltPasswordOnce } from "./md5";
-import { IUser } from "../typings/types";
+import { IUser, STATUS_CHECKING, STATUS_OK, STATUS_FAILURE } from "../typings/types";
 import { signJWT, verifyJWT } from "./jwt";
 import { ObjectID } from "mongodb";
 import { PAGESIZE } from "./consts";
+import { MODE } from "./consts";
+import fs from "fs";
 
 export const reg = async function(req: Request, res: Response) {
     const { db, client } = await dbConnect();
@@ -256,14 +258,151 @@ export const tasks = async function(req: Request, res: Response) {
             }))
         );
 
+        const myTaskListCount = await db.collection("userTask").countDocuments({
+            uid: new ObjectID(uid)
+        });
+
         res.json({
             code: 1,
-            msg: myTaskList
+            msg: { list: myTaskList, count: myTaskListCount }
         });
     } catch (e) {
         res.json({ code: -1, msg: e.message });
         console.log(e);
     } finally {
         client.close();
+    }
+};
+
+export const records = async function(req: Request, res: Response) {
+    const { db, client } = await dbConnect();
+
+    try {
+        const { uid } = verifyJWT(req.header("Authorization"));
+        const { page } = req.params;
+        const { type } = req.body; //Extended 2:ALL
+
+        const matchObj = +type === 2 ? { uid: new ObjectID(uid) } : { uid: new ObjectID(uid), status: +type };
+
+        const myRecordListRaw = await db
+            .collection("record")
+            .aggregate([
+                {
+                    $match: matchObj
+                },
+                {
+                    $sort: {
+                        time: -1
+                    }
+                },
+                {
+                    $skip: (+page - 1) * PAGESIZE
+                },
+                {
+                    $limit: PAGESIZE
+                }
+            ])
+            .toArray();
+
+        const myRecordList = await Promise.all(
+            myRecordListRaw.map(async item => ({
+                ...item,
+                taskInfo: await db.collection("task").findOne({
+                    _id: new ObjectID(item.tid)
+                })
+            }))
+        );
+
+        const myRecordListCount = await db.collection("record").countDocuments({
+            uid: new ObjectID(uid)
+        });
+
+        res.json({
+            code: 1,
+            msg: { list: myRecordList, count: myRecordListCount }
+        });
+    } catch (e) {
+        res.json({ code: -1, msg: e.message });
+        console.log(e);
+    } finally {
+        client.close();
+    }
+};
+
+export const dashboard = async function(req: Request, res: Response) {
+    const { db, client } = await dbConnect();
+
+    try {
+        const { uid } = verifyJWT(req.header("Authorization"));
+
+        const task = {
+            waiting: await db.collection("userTask").countDocuments({
+                uid: new ObjectID(uid),
+                status: STATUS_CHECKING
+            }),
+            ok: await db.collection("userTask").countDocuments({
+                uid: new ObjectID(uid),
+                status: STATUS_OK
+            }),
+            failed: await db.collection("userTask").countDocuments({
+                uid: new ObjectID(uid),
+                status: STATUS_FAILURE
+            })
+        };
+
+        const record = {
+            waiting: await db.collection("record").countDocuments({
+                uid: new ObjectID(uid),
+                status: STATUS_CHECKING
+            }),
+            ok: await db.collection("record").countDocuments({
+                uid: new ObjectID(uid),
+                status: STATUS_OK
+            }),
+            failed: await db.collection("record").countDocuments({
+                uid: new ObjectID(uid),
+                status: STATUS_FAILURE
+            })
+        };
+
+        res.json({
+            code: 1,
+            msg: {
+                task: {
+                    ...task,
+                    total: task.waiting + task.ok + task.failed
+                },
+                record: {
+                    ...record,
+                    total: record.waiting + record.ok + record.failed
+                }
+            }
+        });
+    } catch (e) {
+        res.json({ code: -1, msg: e.message });
+        console.log(e);
+    } finally {
+        client.close();
+    }
+};
+
+export const avatar = async function(req: Request, res: Response) {
+    try {
+        // verifyJWT(req.header("Authorization"));
+        const { uid } = req.params;
+
+        const dirName = "avatar";
+        const parentDir = MODE === "DEV" ? `./upload` : `/var/sweet/upload`;
+        const childDir = `${parentDir}/${dirName}`;
+        const newPath = `${childDir}/${uid}.rabbit`;
+
+        if (fs.existsSync(newPath)) {
+            res.download(newPath);
+        } else {
+            res.download(`${childDir}/default.rabbit`);
+        }
+    } catch (e) {
+        res.json({ code: -1, msg: e.message });
+        console.log(e);
     }
 };

@@ -10,6 +10,9 @@ import fs from "fs";
 import * as User from "./model/user";
 import * as Task from "./model/task";
 import * as Upload from "./model/upload";
+import * as Record from "./model/record";
+import * as Avatar from "./model/avatar";
+
 import { fileDestination, fileFilter, fileName } from "./model/file";
 import { MODE } from "./model/consts";
 
@@ -61,21 +64,32 @@ export const redLock = new Redlock([redisClient], {
 
 //User
 app.get("/user/info/:username", User.info);
+app.get("/user/dashboard", User.dashboard);
+app.get("/user/tasks/:page", User.tasks);
+app.get("/user/records/:page", User.records);
+app.get("/user/avatar/:uid", User.avatar);
 app.post("/user/login", User.login);
 app.post("/user/reg", User.reg);
 app.post("/user/pwd", User.pwd);
 app.post("/user/update", User.update);
-app.get("/user/tasks/:page", User.tasks);
 
 //Task
 app.get("/task/list/:page", Task.list);
 app.get("/task/item/:tid", Task.item);
-app.get("/task/download/:id", Task.download);
+app.get("/task/record/:tid/:page", Task.recordList);
 app.post("/task/commit", Task.commit);
+app.post("/task/check", Task.check);
 app.post("/task/create", Task.create);
+
+//Record
+app.get("/record/download/:id", Record.download);
+app.get("/record/list/:page", Record.list);
+app.post("/record/commit", Record.commit);
+app.post("/record/check", Record.check);
 
 //Upload
 app.post("/upload", upload.single("attach"), Upload.upload);
+app.post("/avatar", Avatar.upload.single("avatar"), Avatar.uploadAvatar);
 
 app.listen(8888, () => {
     console.log(`Rabbit WebServer / ${SERVER_VERSION} is running on port 8888.`);
